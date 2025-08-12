@@ -99,12 +99,18 @@ const Index = () => {
                 <p className="text-sm text-slate-600">Инжиниринговые услуги ЧПУ</p>
               </div>
             </div>
-            <nav className="hidden md:flex space-x-6">
+            <nav className="hidden md:flex space-x-6 items-center">
               <a href="#services" className="text-slate-600 hover:text-blue-600 transition-colors">Услуги</a>
               <a href="#news" className="text-slate-600 hover:text-blue-600 transition-colors">Новости</a>
               <a href="#reviews" className="text-slate-600 hover:text-blue-600 transition-colors">Отзывы</a>
               <a href="#about" className="text-slate-600 hover:text-blue-600 transition-colors">О нас</a>
               <a href="#contacts" className="text-slate-600 hover:text-blue-600 transition-colors">Контакты</a>
+              <div className="ml-4 pl-4 border-l">
+                <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>
+                  <Icon name="User" size={16} className="mr-2" />
+                  Войти
+                </Button>
+              </div>
             </nav>
           </div>
         </div>
