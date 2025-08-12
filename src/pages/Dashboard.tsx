@@ -1,32 +1,18 @@
 import { useState, useEffect } from 'react';
-import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Icon from '@/components/ui/icon';
 
 const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [profileData, setProfileData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: ''
-  });
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [projects, setProjects] = useState<any[]>([]);
+  const [newProject, setNewProject] = useState({ name: '', description: '' });
 
   useEffect(() => {
+    // Проверяем авторизацию
     const currentUser = localStorage.getItem('currentUser');
     if (!currentUser) {
       window.location.href = '/login';
@@ -35,314 +21,253 @@ const Dashboard = () => {
     
     const userData = JSON.parse(currentUser);
     setUser(userData);
-    setProfileData({
-      name: userData.name || '',
-      email: userData.email || '',
-      phone: userData.phone || '',
-      company: userData.company || ''
-    });
-    setAvatarUrl(userData.avatar || '');
+    
+    // Загружаем проекты пользователя
+    const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+    const userProjects = allProjects.filter((p: any) => p.userId === userData.id);
+    setProjects(userProjects);
   }, []);
 
-  const handleProfileUpdate = () => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id);
-    
-    if (userIndex !== -1) {
-      users[userIndex] = { ...users[userIndex], ...profileData };
-      localStorage.setItem('users', JSON.stringify(users));
-      
-      const updatedUser = { ...user, ...profileData };
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      
-      setMessage({ type: 'success', text: 'Профиль успешно обновлен!' });
-      setEditMode(false);
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('currentUser');
+    window.location.href = '/';
   };
 
-  const handlePasswordChange = () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage({ type: 'error', text: 'Новые пароли не совпадают!' });
-      return;
-    }
-
-    if (passwordData.newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Пароль должен содержать минимум 6 символов!' });
-      return;
-    }
-
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id && u.password === passwordData.currentPassword);
+  const handleCreateProject = () => {
+    if (!newProject.name) return;
     
-    if (userIndex === -1) {
-      setMessage({ type: 'error', text: 'Неверный текущий пароль!' });
-      return;
-    }
-
-    users[userIndex].password = passwordData.newPassword;
-    localStorage.setItem('users', JSON.stringify(users));
+    const project = {
+      id: Date.now().toString(),
+      userId: user.id,
+      name: newProject.name,
+      description: newProject.description,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
     
-    setMessage({ type: 'success', text: 'Пароль успешно изменен!' });
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+    allProjects.push(project);
+    localStorage.setItem('projects', JSON.stringify(allProjects));
+    
+    setProjects([...projects, project]);
+    setNewProject({ name: '', description: '' });
   };
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setAvatarUrl(base64String);
-        
-        // Сохраняем аватар
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const userIndex = users.findIndex((u: any) => u.id === user.id);
-        
-        if (userIndex !== -1) {
-          users[userIndex].avatar = base64String;
-          localStorage.setItem('users', JSON.stringify(users));
-          
-          const updatedUser = { ...user, avatar: base64String };
-          localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-          setUser(updatedUser);
-          
-          setMessage({ type: 'success', text: 'Аватар успешно обновлен!' });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleDeleteProject = (projectId: string) => {
+    const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+    const filtered = allProjects.filter((p: any) => p.id !== projectId);
+    localStorage.setItem('projects', JSON.stringify(filtered));
+    
+    setProjects(projects.filter(p => p.id !== projectId));
   };
 
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
-      <Header />
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Личный кабинет
-          </h1>
-          <p className="text-gray-600 mt-2">Управляйте своим профилем и настройками</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <a href="/" className="flex items-center space-x-3">
+                <Icon name="Cog" size={32} className="text-blue-600" />
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800">CNC-Engineer.Ru</h1>
+                  <p className="text-sm text-slate-600">Личный кабинет</p>
+                </div>
+              </a>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-slate-600">
+                Здравствуйте, <span className="font-medium">{user.name}</span>
+              </span>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <Icon name="LogOut" size={16} className="mr-2" />
+                Выйти
+              </Button>
+            </div>
+          </div>
         </div>
+      </header>
 
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="profile">Профиль</TabsTrigger>
+            <TabsTrigger value="projects">Проекты</TabsTrigger>
             <TabsTrigger value="settings">Настройки</TabsTrigger>
           </TabsList>
           
-          {message.text && (
-            <Alert className={`mb-6 ${message.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-              <Icon name={message.type === 'success' ? 'CheckCircle' : 'AlertCircle'} size={16} className={message.type === 'success' ? 'text-green-600' : 'text-red-600'} />
-              <AlertDescription className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>
-                {message.text}
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          <TabsContent value="profile">
-            <div className="grid gap-6 md:grid-cols-3">
-              <Card className="md:col-span-1">
+          <TabsContent value="profile" className="mt-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
                 <CardHeader>
-                  <CardTitle>Фото профиля</CardTitle>
+                  <CardTitle>Информация о профиле</CardTitle>
+                  <CardDescription>Ваши личные данные</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Avatar className="w-32 h-32 mx-auto">
-                    <AvatarImage src={avatarUrl} />
-                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-3xl">
-                      {user.name?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-center">
-                    <Label htmlFor="avatar-upload" className="cursor-pointer">
-                      <Button variant="outline" size="sm" asChild>
-                        <span>
-                          <Icon name="Upload" size={16} className="mr-2" />
-                          Загрузить фото
-                        </span>
-                      </Button>
-                    </Label>
-                    <Input
-                      id="avatar-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
+                  <div>
+                    <p className="text-sm text-gray-500">Имя</p>
+                    <p className="font-medium">{user.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium">{user.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Телефон</p>
+                    <p className="font-medium">{user.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Компания</p>
+                    <p className="font-medium">{user.company || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Дата регистрации</p>
+                    <p className="font-medium">
+                      {new Date(user.createdAt).toLocaleDateString('ru-RU')}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
               
-              <Card className="md:col-span-2">
+              <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle>Информация профиля</CardTitle>
-                      <CardDescription>Ваши личные данные</CardDescription>
-                    </div>
-                    {!editMode && (
-                      <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
-                        <Icon name="Pencil" size={16} className="mr-2" />
-                        Редактировать
-                      </Button>
-                    )}
-                  </div>
+                  <CardTitle>Статистика</CardTitle>
+                  <CardDescription>Ваша активность на платформе</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {editMode ? (
-                    <>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Имя</Label>
-                          <Input
-                            id="name"
-                            value={profileData.name}
-                            onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={profileData.email}
-                            onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="phone">Телефон</Label>
-                          <Input
-                            id="phone"
-                            value={profileData.phone}
-                            onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="company">Компания</Label>
-                          <Input
-                            id="company"
-                            value={profileData.company}
-                            onChange={(e) => setProfileData({ ...profileData, company: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button onClick={handleProfileUpdate} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                          Сохранить
-                        </Button>
-                        <Button variant="outline" onClick={() => setEditMode(false)}>
-                          Отмена
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <p className="text-sm text-gray-500">Имя</p>
-                        <p className="font-medium">{user.name}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Email</p>
-                        <p className="font-medium">{user.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Телефон</p>
-                        <p className="font-medium">{user.phone}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Компания</p>
-                        <p className="font-medium">{user.company || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Дата регистрации</p>
-                        <p className="font-medium">
-                          {new Date(user.createdAt).toLocaleDateString('ru-RU')}
-                        </p>
-                      </div>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-600">{projects.length}</p>
+                      <p className="text-sm text-gray-600">Проектов</p>
                     </div>
-                  )}
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <p className="text-2xl font-bold text-green-600">
+                        {projects.filter(p => p.status === 'active').length}
+                      </p>
+                      <p className="text-sm text-gray-600">Активных</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
           
-          <TabsContent value="settings">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Изменить пароль</CardTitle>
-                  <CardDescription>Обновите пароль вашего аккаунта</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Текущий пароль</Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">Новый пароль</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Подтвердите новый пароль</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={passwordData.confirmPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    />
-                  </div>
-                  <Button onClick={handlePasswordChange} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+          <TabsContent value="projects" className="mt-6">
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Создать новый проект</CardTitle>
+                <CardDescription>Добавьте описание вашего проекта</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Название проекта"
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={newProject.name}
+                    onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                  />
+                  <textarea
+                    placeholder="Описание проекта"
+                    className="w-full px-3 py-2 border rounded-md"
+                    rows={3}
+                    value={newProject.description}
+                    onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                  />
+                  <Button onClick={handleCreateProject} className="bg-blue-600 hover:bg-blue-700">
+                    <Icon name="Plus" size={16} className="mr-2" />
+                    Создать проект
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Мои проекты</h3>
+              {projects.length === 0 ? (
+                <Alert>
+                  <Icon name="Info" size={16} />
+                  <AlertDescription>
+                    У вас пока нет проектов. Создайте первый проект выше.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {projects.map((project) => (
+                    <Card key={project.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{project.name}</CardTitle>
+                            <CardDescription className="mt-1">
+                              {project.description || 'Без описания'}
+                            </CardDescription>
+                          </div>
+                          <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
+                            {project.status === 'active' ? 'Активный' : 'Завершен'}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-500">
+                            {new Date(project.createdAt).toLocaleDateString('ru-RU')}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteProject(project.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Icon name="Trash2" size={16} />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="settings" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Настройки аккаунта</CardTitle>
+                <CardDescription>Управление вашими настройками</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Безопасность</h4>
+                  <Button variant="outline" className="w-full justify-start">
                     <Icon name="Key" size={16} className="mr-2" />
                     Изменить пароль
                   </Button>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Настройки аккаунта</CardTitle>
-                  <CardDescription>Дополнительные параметры</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Уведомления</h4>
-                    <div className="flex items-center space-x-2">
-                      <input type="checkbox" id="email-notifications" className="rounded" defaultChecked />
-                      <label htmlFor="email-notifications" className="text-sm">
-                        Получать уведомления по email
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input type="checkbox" id="sms-notifications" className="rounded" />
-                      <label htmlFor="sms-notifications" className="text-sm">
-                        SMS-уведомления о статусе заказов
-                      </label>
-                    </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Уведомления</h4>
+                  <div className="flex items-center space-x-2">
+                    <input type="checkbox" id="email-notifications" className="rounded" />
+                    <label htmlFor="email-notifications" className="text-sm">
+                      Получать уведомления по email
+                    </label>
                   </div>
-                  
-                  <div className="pt-4 space-y-2">
-                    <h4 className="font-medium text-red-600">Опасная зона</h4>
-                    <Button variant="destructive" className="w-full">
-                      <Icon name="AlertTriangle" size={16} className="mr-2" />
-                      Удалить аккаунт
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Удаление аккаунта</h4>
+                  <Button variant="destructive" className="w-full justify-start">
+                    <Icon name="AlertTriangle" size={16} className="mr-2" />
+                    Удалить аккаунт
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
